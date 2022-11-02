@@ -43,7 +43,7 @@ async function bootstrap() {
     const { title } = createPoolBody.parse(request.body);
 
     const generate = new ShortUniqueId({ length: 6 });
-    const code = String(generate()).toLocaleUpperCase();
+    const code = String(generate()).toUpperCase();
 
     await prisma.pool.create({
       data: {
@@ -52,7 +52,7 @@ async function bootstrap() {
       }
     });
 
-    return reply.status(201).send({ title });
+    return reply.status(201).send({ code });
   });
 
   await fastify.listen({ port: 3333, host: '0.0.0.0' });
