@@ -1,4 +1,4 @@
-<h1 align="center"> NLW Copa - Web </h1>
+<h1 align="center"> NLW Copa - Server </h1>
 
 <p align="center">
   <img alt="nlw-copa-web" src="https://user-images.githubusercontent.com/43352880/202309765-e0a1628a-189f-4154-a645-ef4da0978fd8.png" width="100%">
