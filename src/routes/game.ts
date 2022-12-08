@@ -2,6 +2,8 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { authenticate } from "../plugins/authenticate";
+import { UserSubmission } from "../@types/user";
+import { EvaluateUserRankingUseCase } from "../usecases/userRanking";
 
 export async function gameRoutes(fastify: FastifyInstance) {
   fastify.get('/pools/:id/games', { onRequest: [authenticate] }, async (request) => {
@@ -37,4 +39,109 @@ export async function gameRoutes(fastify: FastifyInstance) {
       }),
     };
   });
+
+  fastify.get(
+		"/pools/:id/ranking",
+		{ onRequest: [authenticate] },
+		async (request) => {
+			const getPoolParams = z.object({
+				id: z.string(),
+			});
+
+			const { id: poolId } = getPoolParams.parse(request.params);
+
+			const participants = await prisma.participant.findMany({
+				select: {
+					user: {
+						select: {
+							id: true,
+							name: true,
+							avatarUrl: true,
+						},
+					},
+					guesses: {
+						select: {
+							id: true,
+							firstTeamPoints: true,
+							secondTeamPoints: true,
+							createdAt: true,
+							game: {
+								select: {
+									date: true,
+									result: {
+										select: {
+											firstTeamPoints: true,
+											secondTeamPoints: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				where: {
+					poolId,
+				},
+			});
+
+			const preparedUserData: UserSubmission[] = participants.map(
+				(participantItem) => {
+					return {
+						id: participantItem.user.id,
+						name: participantItem.user.name,
+						avatarUrl: participantItem.user.avatarUrl,
+						attemps: participantItem.guesses.map((guessItem) => {
+							let gameResult = null;
+
+							if (guessItem.game.result) {
+								gameResult = {
+									firstTeamPoints: guessItem.game.result.firstTeamPoints,
+									secondTeamPoints: guessItem.game.result.secondTeamPoints,
+								};
+							}
+
+							return {
+								guessSubmission: {
+									firstTeamPoints: guessItem.firstTeamPoints,
+									secondTeamPoints: guessItem.secondTeamPoints,
+								},
+								gameResult,
+							};
+						}),
+					};
+				}
+			);
+
+			const computedScoreUsers =
+				EvaluateUserRankingUseCase.execute(preparedUserData);
+
+			computedScoreUsers.sort((a, b) => {
+				if (a.score > b.score) {
+					return -1;
+				}
+
+				if (a.score < b.score) {
+					return 1;
+				}
+
+				if (a.attemps.length > b.attemps.length) {
+					return -1;
+				}
+
+				if (a.attemps.length < b.attemps.length) {
+					return 1;
+				}
+
+				return a.name < b.name ? 1 : -1;
+			});
+
+			return {
+				ranking: computedScoreUsers.map((computedItem, idx) => ({
+					position: idx + 1,
+					...computedItem,
+					attemps: undefined,
+				})),
+			};
+		}
+	);
 }
