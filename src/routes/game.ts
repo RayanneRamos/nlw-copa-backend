@@ -40,10 +40,7 @@ export async function gameRoutes(fastify: FastifyInstance) {
     };
   });
 
-  fastify.get(
-		"/pools/:id/ranking",
-		{ onRequest: [authenticate] },
-		async (request) => {
+  fastify.get('/pools/:id/ranking', { onRequest: [authenticate] }, async (request) => {
 			const getPoolParams = z.object({
 				id: z.string(),
 			});
